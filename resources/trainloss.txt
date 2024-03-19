@@ -1,0 +1,3 @@
+Iter:  499990 Loss: 1.538
+Iter:  499990 Loss: 0.918
+Iter:  451510 Loss: 0.932
