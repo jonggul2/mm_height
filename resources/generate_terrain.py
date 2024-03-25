@@ -264,7 +264,21 @@ predicted_heights_grid = predicted_heights.reshape(x_grid.shape)
 
 
 
-smoothed_height_map = smooth_height_map(predicted_heights_grid)
+
+# from scipy.ndimage import median_filter
+# def smooth_height_map(height_map, size=3):
+#     smoothed_height_map = median_filter(height_map, size=size)
+#     return smoothed_height_map
+
+from scipy.ndimage import gaussian_filter
+
+def smooth_height_map(height_map, sigma=1):
+    smoothed_height_map = gaussian_filter(height_map, sigma=sigma)
+    return smoothed_height_map
+
+predicted_heights_grid = smooth_height_map(predicted_heights_grid)
+
+
 
 fig = plt.figure(figsize=(10, 8))
 ax = fig.add_subplot(111, projection='3d')
@@ -273,7 +287,7 @@ ax.set_xlim([min_x, max_x])
 ax.set_ylim([min_x, max_x])
 ax.set_zlim([min_x, max_x])
 
-surf = ax.plot_surface(x_grid, z_grid, smoothed_height_map, cmap='terrain', edgecolor='none')
+surf = ax.plot_surface(x_grid, z_grid, predicted_heights_grid, cmap='terrain', edgecolor='none')
 
 
 fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
@@ -286,10 +300,10 @@ ax.set_title('3D Terrain')
 plt.show()
 
 
-np.savetxt('terrain_data.txt', np.column_stack([x_grid.flatten(), z_grid.flatten(), predicted_heights.flatten()]), delimiter=',', comments='')
+np.savetxt('resources/terrain_data.txt', np.column_stack([x_grid.flatten(), z_grid.flatten(), predicted_heights.flatten()]), delimiter=',', comments='')
 
 
-height_map = smoothed_height_map
+height_map = predicted_heights_grid
 
 height_map_normalized = ((height_map - height_map.min()) / (height_map.max() - height_map.min()) * 255).astype(np.uint8)
 
@@ -297,20 +311,14 @@ height_map_image = Image.fromarray(height_map_normalized)
 height_map_image.save("resources/heightmap.png")
 height_map_image.show()
 
+
+
+
 # import pdb
 # pdb.set_trace()
 
 # np.savetxt('terrain_data1.txt', np.column_stack([x_grid.flatten(), z_grid.flatten(), predicted_heights.flatten()]), delimiter=',', comments='')
 # data = np.loadtxt('terrain_data1.txt', delimiter=',')
-
-
-# 다이아몬드-스퀘어 알고리즘 적용
-
-
-
-
-
-
 
 # min_x = -6
 # max_x = 6
@@ -330,11 +338,6 @@ height_map_image.show()
 # ax.set_zlabel('Y')
 
 # plt.show()
-
-
-
-
-
 
     
 # """ Write Database """

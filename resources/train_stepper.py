@@ -55,7 +55,7 @@ if __name__ == '__main__':
     seed = 1234
     batchsize = 32
     lr = 0.001
-    niter = 500000
+    niter = 300000
     window = 20
     dt = 1.0 / 60.0
     
@@ -274,3 +274,5 @@ if __name__ == '__main__':
         if i % 1000 == 0:
             scheduler.step()
             
+import subprocess
+subprocess.run(['python', 'train_projector.py'])

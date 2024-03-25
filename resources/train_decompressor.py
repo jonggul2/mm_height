@@ -84,7 +84,7 @@ if __name__ == '__main__':
     seed = 1234
     batchsize = 32
     lr = 0.001
-    niter = 500000
+    niter = 300000
     window = 2
     dt = 1.0 / 60.0
     
@@ -575,10 +575,10 @@ if __name__ == '__main__':
         else:
             rolling_loss = rolling_loss * 0.99 + loss.item() * 0.01
         
-        if i % 10 == 0:
+        if i % 10000 == 0:
             sys.stdout.write('\rIter: %7i Loss: %5.3f' % (i, rolling_loss))
         
-        if i % 1000 == 0:
+        if i % 10000 == 0:
             generate_animation()
             save_compressed_database()
             save_network('decompressor.bin', [
@@ -589,6 +589,8 @@ if __name__ == '__main__':
                 decompressor_mean_out,
                 decompressor_std_out)
             
-        if i % 1000 == 0:
+        if i % 10000 == 0:
             scheduler.step()
             
+import subprocess
+subprocess.run(['python', 'train_stepper.py'])

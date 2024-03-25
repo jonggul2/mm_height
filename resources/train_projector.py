@@ -61,7 +61,7 @@ if __name__ == '__main__':
     seed = 1234
     batchsize = 32
     lr = 0.001
-    niter = 500000
+    niter = 300000
     
     np.random.seed(seed)
     torch.manual_seed(seed)

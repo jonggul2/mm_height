@@ -152,10 +152,10 @@ vec3 gamepad_get_stick(int stick, const float deadzone = 0.2f)
     }
     else if (stick==GAMEPAD_STICK_RIGHT)	{
             // use the number pad to move the camera
-        if (IsKeyDown(KEY_KP_6)) pad.x-=am;
-        if (IsKeyDown(KEY_KP_4)) pad.x+=am; 
-        if (IsKeyDown(KEY_KP_8)) pad.z+=am;
-        if (IsKeyDown(KEY_KP_2)) pad.z-=am;
+        if (IsKeyDown(KEY_D)) pad.x-=am;
+        if (IsKeyDown(KEY_A)) pad.x+=am; 
+        if (IsKeyDown(KEY_W)) pad.z+=am;
+        if (IsKeyDown(KEY_S)) pad.z-=am;
     }
     return pad;
 }
@@ -571,6 +571,7 @@ void query_compute_trajectory_position_feature(
     slice1d<float> query, 
     int& offset, 
     const vec3 root_position, 
+    const vec3 root_body_position, 
     const quat root_rotation, 
     const slice1d<vec3> trajectory_positions,
     const vector<float> terrain_y)
@@ -581,13 +582,14 @@ void query_compute_trajectory_position_feature(
     
     float root_height = findClosestY(terrain_y, root_position.x, root_position.z);
 
-    traj0.y = findClosestY(terrain_y, trajectory_positions(1).x, trajectory_positions(1).z) - root_height;
-    traj1.y = findClosestY(terrain_y, trajectory_positions(2).x, trajectory_positions(2).z) - root_height;
-    traj2.y = findClosestY(terrain_y, trajectory_positions(3).x, trajectory_positions(3).z) - root_height;
-    // traj0.y = findClosestY(terrain_y, trajectory_positions(1).x, trajectory_positions(1).z);
-    // traj1.y = findClosestY(terrain_y, trajectory_positions(2).x, trajectory_positions(2).z);
-    // traj2.y = findClosestY(terrain_y, trajectory_positions(3).x, trajectory_positions(3).z);
+    // traj0.y = findClosestY(terrain_y, trajectory_positions(1).x, trajectory_positions(1).z) - root_height;
+    // traj1.y = findClosestY(terrain_y, trajectory_positions(2).x, trajectory_positions(2).z) - root_height;
+    // traj2.y = findClosestY(terrain_y, trajectory_positions(3).x, trajectory_positions(3).z) - root_height;
 
+    traj0.y = findClosestY(terrain_y, trajectory_positions(1).x, trajectory_positions(1).z) + 0.9 - root_position.y - root_body_position.y;
+    traj1.y = findClosestY(terrain_y, trajectory_positions(2).x, trajectory_positions(2).z) + 0.9 - root_position.y - root_body_position.y;
+    traj2.y = findClosestY(terrain_y, trajectory_positions(3).x, trajectory_positions(3).z) + 0.9 - root_position.y - root_body_position.y;
+    
     query(offset + 0) = traj0.x;
     query(offset + 1) = traj0.y;
     query(offset + 2) = traj0.z;
@@ -613,16 +615,13 @@ void query_compute_trajectory_direction_feature(
     vec3 traj2 = quat_inv_mul_vec3(root_rotation, quat_mul_vec3(trajectory_rotations(3), vec3(0, 0, 1)));
     
     query(offset + 0) = traj0.x;
-    query(offset + 1) = traj0.y;
-    query(offset + 2) = traj0.z;
-    query(offset + 3) = traj1.x;
-    query(offset + 4) = traj1.y;
-    query(offset + 5) = traj1.z;
-    query(offset + 6) = traj2.x;
-    query(offset + 7) = traj2.y;
-    query(offset + 8) = traj2.z;
+    query(offset + 1) = traj0.z;
+    query(offset + 2) = traj1.x;
+    query(offset + 3) = traj1.z;
+    query(offset + 4) = traj2.x;
+    query(offset + 5) = traj2.z;
     
-    offset += 9;
+    offset += 6;
 }
 
 void query_compute_foot_contact_feature(
@@ -723,7 +722,6 @@ void simulation_positions_update(
     const float dt,
     const slice1d<vec3> obstacles_positions,
     const slice1d<vec3> obstacles_scales,
-    const array1d<bool> contact_states,
     vector<float> terrain_y)
 {
     float y = halflife_to_damping(halflife) / 2.0f; 
@@ -788,14 +786,20 @@ void simulation_positions_update(
 
     // Terrain
 
-    float map_y = findClosestY(terrain_y, position.x, position.z);
+    // float map_y = findClosestY(terrain_y, position.x, position.z);
 
-    if (position.y > map_y) acceleration.y -= gravity;
+    // if (position.y > map_y) acceleration.y -= gravity;
     
     position = eydt*(((-j1)/(y*y)) + ((-j0 - j1*dt)/y)) + 
         (j1/(y*y)) + j0/y + desired_velocity * dt + position_prev;
     velocity = eydt*(j0 + j1*dt) + desired_velocity;
     acceleration = eydt*(acceleration - j1*y*dt);
+
+
+    // float map_y = findClosestY(terrain_y, position.x, position.z);
+
+    // position.y = map_y;
+
 
     // if (position.y + 0.05f < map_y) position.y = map_y + 0.05f;
     // else if (position.y < map_y) position.y = map_y;
@@ -803,21 +807,55 @@ void simulation_positions_update(
     //     position.y = map_y;
     // }
 
-    position.y = map_y;
+    // position.y = map_y;
 
-    if (position.y < map_y) 
-    {
-        position.y = map_y;
-        velocity.y = 0.0f;
-        acceleration.y = 0.0f;
-    }
+    // if (position.y < map_y) 
+    // {
+    //     position.y = map_y;
+    //     velocity.y = 0.0f;
+    //     acceleration.y = 0.0f;
+    // }
     
-    if (position.y < 0)
-    {
-        position.y = 0.0f;
-        velocity.y = 0.0f;
-        acceleration.y = 0.0f;
-    }
+    // if (position.y < 0)
+    // {
+    //     position.y = 0.0f;
+    //     velocity.y = 0.0f;
+    //     acceleration.y = 0.0f;
+    // }
+
+    position = simulation_collide_obstacles(
+        position_prev, 
+        position,
+        obstacles_positions,
+        obstacles_scales);
+}
+
+void simulation_positions_update_trajectory(
+    vec3& position, 
+    vec3& velocity, 
+    vec3& acceleration, 
+    const vec3 desired_velocity, 
+    const float halflife, 
+    const float dt,
+    const slice1d<vec3> obstacles_positions,
+    const slice1d<vec3> obstacles_scales,
+    vector<float> terrain_y)
+{
+    float y = halflife_to_damping(halflife) / 2.0f; 
+    vec3 j0 = velocity - desired_velocity;
+    vec3 j1 = acceleration + j0*y;
+    float eydt = fast_negexpf(y*dt);
+    
+    vec3 position_prev = position;
+
+    position = eydt*(((-j1)/(y*y)) + ((-j0 - j1*dt)/y)) + 
+        (j1/(y*y)) + j0/y + desired_velocity * dt + position_prev;
+    velocity = eydt*(j0 + j1*dt) + desired_velocity;
+    acceleration = eydt*(acceleration - j1*y*dt);
+    
+    float map_y = findClosestY(terrain_y, position.x, position.z);
+
+    position.y = map_y;
 
     position = simulation_collide_obstacles(
         position_prev, 
@@ -898,7 +936,7 @@ void trajectory_positions_predict(
         velocities(i) = velocities(i-1);
         accelerations(i) = accelerations(i-1);
         
-        simulation_positions_update(
+        simulation_positions_update_trajectory(
             positions(i), 
             velocities(i), 
             accelerations(i), 
@@ -907,7 +945,6 @@ void trajectory_positions_predict(
             dt, 
             obstacles_positions, 
             obstacles_scales,
-            contact_states,
             terrain_y);
     }
 }
@@ -1176,9 +1213,9 @@ void draw_features(const slice1d<float> features, const vec3 pos, const quat rot
     vec3 traj0_pos = quat_mul_vec3(rot, vec3(features(15), features(16), features(17))) + pos;
     vec3 traj1_pos = quat_mul_vec3(rot, vec3(features(18), features(19), features(20))) + pos;
     vec3 traj2_pos = quat_mul_vec3(rot, vec3(features(21), features(22), features(23))) + pos;
-    vec3 traj0_dir = quat_mul_vec3(rot, vec3(features(24), features(25), features(26)));
-    vec3 traj1_dir = quat_mul_vec3(rot, vec3(features(27), features(28), features(29)));
-    vec3 traj2_dir = quat_mul_vec3(rot, vec3(features(30), features(31), features(32)));
+    vec3 traj0_dir = quat_mul_vec3(rot, vec3(features(24),         0.0f, features(25)));
+    vec3 traj1_dir = quat_mul_vec3(rot, vec3(features(26),         0.0f, features(27)));
+    vec3 traj2_dir = quat_mul_vec3(rot, vec3(features(28),         0.0f, features(29)));
 
 
     // printf("features(16): %f \n", features(16));
@@ -1419,13 +1456,14 @@ int main(void)
 {
 // Init Window
     
-    // const int screen_width = 2420;
-    const int screen_width = 1800;
+    const int screen_width = 2420;
+    // const int screen_width = 1800;
     const int screen_height = 1300;
+    // const int screen_width = 1500;
+    // const int screen_height = 900;
     
     SetConfigFlags(FLAG_VSYNC_HINT);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    // InitWindow(screen_width, screen_height, "raylib [data vs code driven displacement]");
     InitWindow(screen_width, screen_height, "Learned Motion Matching");
     SetWindowPosition(50, 0);
     SetTargetFPS(60);
@@ -1561,19 +1599,20 @@ int main(void)
     database db;
     database_load(db, "./resources/database.bin");
     
-    float feature_weight_foot_position = 0.75f;
-    float feature_weight_foot_velocity = 1.0f;
-    float feature_weight_hip_velocity = 1.0f;
-    float feature_weight_trajectory_positions = 1.0f;
-    float feature_weight_trajectory_directions = 1.5f;
+    float feature_weight_foot_position = 2.0f;
+    float feature_weight_foot_velocity = 2.0f;
+    float feature_weight_hip_velocity = 1.5f;
+    float feature_weight_trajectory_positions = 2.0f;
+    float feature_weight_trajectory_directions = 1.0f;
     float feature_weight_foot_contact = 1.0f;
-    // float feature_weight_foot_position = 0.75f;
-    // float feature_weight_foot_velocity = 1.0f;
-    // float feature_weight_hip_velocity = 1.0f;
-    // float feature_weight_trajectory_positions = 100.0f;
-    // float feature_weight_trajectory_directions = 1.5f;
+
+    // float feature_weight_foot_position = 2.5f;
+    // float feature_weight_foot_velocity = 2.5f;
+    // float feature_weight_hip_velocity = 1.5f;
+    // float feature_weight_trajectory_positions = 2.0f;
+    // float feature_weight_trajectory_directions = 0.5f;
     // float feature_weight_foot_contact = 1.0f;
-    
+
     database_build_matching_features(
         db,
         feature_weight_foot_position,
@@ -1684,9 +1723,6 @@ int main(void)
     float simulation_rotation_halflife = 0.27f;
     
     // All speeds in m/s
-    // float simulation_run_fwrd_speed = 4.0f;
-    // float simulation_run_side_speed = 3.0f;
-    // float simulation_run_back_speed = 2.5f;
     float simulation_run_fwrd_speed = 1.75f;
     float simulation_run_side_speed = 1.5f;
     float simulation_run_back_speed = 1.25f;
@@ -1694,9 +1730,6 @@ int main(void)
     float simulation_walk_fwrd_speed = 1.75f;
     float simulation_walk_side_speed = 1.5f;
     float simulation_walk_back_speed = 1.25f;
-    // float simulation_walk_fwrd_speed = 1.0f;
-    // float simulation_walk_side_speed = 0.8f;
-    // float simulation_walk_back_speed = 0.6f;
     
     array1d<vec3> trajectory_desired_velocities(4);
     array1d<quat> trajectory_desired_rotations(4);
@@ -1708,8 +1741,8 @@ int main(void)
     
     // Synchronization
     
-    bool synchronization_enabled = false;
-    float synchronization_data_factor = 1.0f;
+    bool synchronization_enabled = true;
+    float synchronization_data_factor = 0.75f;
     
     // Adjustment
     
@@ -1831,16 +1864,16 @@ int main(void)
             desired_gait_velocity,
             dt);
         
-        if (IsKeyPressed(KEY_Q)) {
-            simulation_run_fwrd_speed = 0.5f;
-            simulation_run_side_speed = 0.4f;
-            simulation_run_back_speed = 0.3f;
-        }
-        if (IsKeyPressed(KEY_W)) {
-            simulation_run_fwrd_speed = 1.0f;
-            simulation_run_side_speed = 0.8f;
-            simulation_run_back_speed = 0.6f;
-        }
+        // if (IsKeyPressed(KEY_Q)) {
+        //     simulation_run_fwrd_speed = 0.5f;
+        //     simulation_run_side_speed = 0.4f;
+        //     simulation_run_back_speed = 0.3f;
+        // }
+        // if (IsKeyPressed(KEY_W)) {
+        //     simulation_run_fwrd_speed = 1.0f;
+        //     simulation_run_side_speed = 0.8f;
+        //     simulation_run_back_speed = 0.6f;
+        // }
 
         // Get the desired simulation speeds based on the gait
         float simulation_fwrd_speed = lerpf(simulation_run_fwrd_speed, simulation_walk_fwrd_speed, desired_gait);
@@ -1900,7 +1933,7 @@ int main(void)
           gamepadstick_left,
           gamepadstick_right,
           desired_strafe,
-          20.0f * dt);
+          15.0f * dt);
         
         trajectory_rotations_predict(
             trajectory_rotations,
@@ -1909,7 +1942,7 @@ int main(void)
             simulation_angular_velocity,
             trajectory_desired_rotations,
             simulation_rotation_halflife,
-            20.0f * dt);
+            15.0f * dt);
         
         trajectory_desired_velocities_predict(
           trajectory_desired_velocities,
@@ -1922,7 +1955,7 @@ int main(void)
           simulation_fwrd_speed,
           simulation_side_speed,
           simulation_back_speed,
-          20.0f * dt);
+          15.0f * dt);
         
         trajectory_positions_predict(
             trajectory_positions,
@@ -1933,7 +1966,7 @@ int main(void)
             simulation_acceleration,
             trajectory_desired_velocities,
             simulation_velocity_halflife,
-            20.0f * dt,
+            15.0f * dt,
             obstacles_positions,
             obstacles_scales,
             contact_states,
@@ -1955,11 +1988,12 @@ int main(void)
         query_copy_denormalized_feature(query, offset, 3, query_features, db.features_offset, db.features_scale); // Left Foot Velocity
         query_copy_denormalized_feature(query, offset, 3, query_features, db.features_offset, db.features_scale); // Right Foot Velocity
         query_copy_denormalized_feature(query, offset, 3, query_features, db.features_offset, db.features_scale); // Hip Velocity
-        query_compute_trajectory_position_feature(query, offset, bone_positions(0), bone_rotations(0), trajectory_positions, terrain_y);
+        // query_compute_trajectory_position_feature(query, offset, bone_positions(0), bone_rotations(0), trajectory_positions, terrain_y);
+        query_compute_trajectory_position_feature(query, offset, bone_positions(0), bone_positions(1), bone_rotations(0), trajectory_positions, terrain_y);
         query_compute_trajectory_direction_feature(query, offset, bone_rotations(0), trajectory_rotations);
-        query_compute_foot_contact_feature(query, offset, contact_states, contact_positions(0), contact_positions(1), query_features, terrain_y);
+        // query_compute_foot_contact_feature(query, offset, contact_states, contact_positions(0), contact_positions(1), query_features, terrain_y);
 
-        cout << frame_index << " " << trns_bone_positions(0).x <<endl;
+        // cout << frame_index << " " << trns_bone_positions(0).x <<endl;
 
         assert(offset == db.nfeatures());
 
@@ -2167,7 +2201,6 @@ int main(void)
             dt,
             obstacles_positions,
             obstacles_scales,
-            contact_states,
             terrain_y);
             
         simulation_rotations_update(
@@ -2308,6 +2341,7 @@ int main(void)
                 int knee_bone = db.bone_parents(heel_bone);
                 int hip_bone = db.bone_parents(knee_bone);
                 int root_bone = db.bone_parents(hip_bone);
+                int sim_bone = db.bone_parents(root_bone);
                 
                 // Compute the world space position for the toe
                 global_bone_computed.zero();
@@ -2343,27 +2377,17 @@ int main(void)
                 vec3 contact_position_clamp = contact_positions(i);
                 contact_position_clamp.y = maxf(contact_position_clamp.y, ik_foot_height);
                 
-                // Contact
-                // float map_y = findClosestY(terrain_y, contact_position_clamp.x, contact_position_clamp.z);
-                // if (contact_position_clamp.y < map_y) {
-                //     contact_position_clamp.y = maxf(contact_position_clamp.y, map_y);
-                // }
+                if (contact_states(i))
+                {
+                    float map_y = findClosestY(terrain_y, contact_position_clamp.x, contact_position_clamp.z);
+                    if (contact_position_clamp.y < map_y) {
+                        contact_position_clamp.y = maxf(contact_position_clamp.y, map_y);
+                    }
+                }
 
-                // for (int j = 0; j < obstacles_positions.size; j++)
-                // {
-                //     if (obstacles_positions(j).x - 0.5f * obstacles_scales(j).x <= contact_positions(i).x &&
-                //     contact_positions(i).x<= obstacles_positions(j).x + 0.5f * obstacles_scales(j).x &&
-                //     obstacles_positions(j).z - 0.5f * obstacles_scales(j).z <= contact_positions(i).z &&
-                //     contact_positions(i).z<= obstacles_positions(j).z + 0.5f * obstacles_scales(j).z) {
-                //         contact_position_clamp.y = maxf(contact_position_clamp.y, ik_foot_height);
-                //         contact_position_clamp.y = maxf(contact_position_clamp.y, obstacles_positions(j).y + 1.0f * obstacles_scales(j).y);
-                //     }
-                // }
+                // for (int bone : {heel_bone, knee_bone, hip_bone, root_bone})
+                for (int bone : {heel_bone, knee_bone, hip_bone, root_bone, sim_bone})
 
-                // Re-compute toe, heel, knee, hip, and root bone positions
-                // cout << "before x:" << global_bone_positions(0).x << " y:" << global_bone_positions(0).y << " z:" << global_bone_positions(0).z <<std::endl;
-
-                for (int bone : {heel_bone, knee_bone, hip_bone, root_bone})
                 {
                     forward_kinematics_partial(
                         global_bone_positions,
@@ -2539,17 +2563,19 @@ int main(void)
         
         DrawModel(character_model, (Vector3){0.0f, 0.0f, 0.0f}, 1.0f, RAYWHITE);
         
-        float radius = 0.1;
+        float radius = 0.05f;
 
-        if (contact_states(0) == true){        
-            Vector3 left_foot = { global_bone_positions.data[5].x, global_bone_positions.data[5].y, global_bone_positions.data[5].z };
-            DrawSphere(left_foot, radius, BLUE);
-        }
+        // if (contact_states(0) == true){        
+        //     Vector3 left_foot = { global_bone_positions.data[5].x, global_bone_positions.data[5].y, global_bone_positions.data[5].z };
+        //     // DrawSphere(left_foot, radius, BLUE);
+        //     // DrawSphereWires(left_foot, radius, 4, 10, BLUE);
+        // }
 
-        if (contact_states(1) == true){
-            Vector3 right_foot = { global_bone_positions.data[9].x, global_bone_positions.data[9].y, global_bone_positions.data[9].z };
-            DrawSphere(right_foot, radius, BLUE);
-        }
+        // if (contact_states(1) == true){
+        //     Vector3 right_foot = { global_bone_positions.data[9].x, global_bone_positions.data[9].y, global_bone_positions.data[9].z };
+        //     // DrawSphere(right_foot, radius, BLUE);
+        //     // DrawSphereWires(right_foot, radius, 4, 10, BLUE);
+        // }
 
         // Draw matched features
         

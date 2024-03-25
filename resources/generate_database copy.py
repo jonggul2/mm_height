@@ -49,8 +49,10 @@ files = ['obstacles1_subject1.bvh',
          'walk1_subject5.bvh',
          ]
 
-# files = ['obstacles1_subject1.bvh',
-#          ]
+files = ['obstacles1_subject2.bvh',
+         ]
+
+# files = ['walk1_subject5.bvh']
 
 # folder_path = './bvh' 
 # files = []
@@ -124,20 +126,21 @@ for filename in files:
         sim_rotation_joint = bvh_data['names'].index("Hips")
         
         # Position comes from spine joint
-        sim_position = np.array([1.0, 1.0, 1.0]) * global_positions[:,sim_position_joint:sim_position_joint+1]
+        sim_position = np.array([1.0, 0.0, 1.0]) * global_positions[:,sim_position_joint:sim_position_joint+1]
 
-
-        # if ('obstacles' in filename):
-        #     file_path = 'terrain_data.txt'
-        #     data = np.loadtxt(file_path, delimiter=',')
-        #     for i in range(sim_position.shape[0]):
-        #         height = find_closest_y(data[:, 2], sim_position[i, 0, 0], sim_position[i, 0, 2])
-        #         sim_position[i, 0, 1] = height
-
-        # else:
-        #     sim_position = np.array([1.0, 0.0, 1.0]) * global_positions[:,sim_position_joint:sim_position_joint+1]
-
-
+        if ('obstacles' in filename):
+            if mirror:
+                file_path = 'resources/terrain_data.txt'
+                data = np.loadtxt(file_path, delimiter=',')
+                for i in range(sim_position.shape[0]):
+                    height = find_closest_y(data[:, 2], -sim_position[i, 0, 0], sim_position[i, 0, 2])
+                    sim_position[i, 0, 1] = height
+            else:
+                file_path = 'resources/terrain_data.txt'
+                data = np.loadtxt(file_path, delimiter=',')
+                for i in range(sim_position.shape[0]):
+                    height = find_closest_y(data[:, 2], sim_position[i, 0, 0], sim_position[i, 0, 2])
+                    sim_position[i, 0, 1] = height
 
         # root_height = sim_position[0, 0, 1]
         # sim_position[:, 1:, :] = np.array([1.0, 0.0, 1.0]) * sim_position[:, 1:, :]
@@ -157,8 +160,6 @@ for filename in files:
                 
         sim_position = signal.savgol_filter(sim_position, 31, 3, axis=0, mode='interp')
         
-
-        
         # Direction comes from projected hip forward direction
         sim_direction = np.array([1.0, 0.0, 1.0]) * quat.mul_vec(global_rotations[:,sim_rotation_joint:sim_rotation_joint+1], np.array([0.0, 1.0, 0.0]))
 
@@ -170,36 +171,67 @@ for filename in files:
         # Extract rotation from direction
         sim_rotation = quat.normalize(quat.between(np.array([0, 0, 1]), sim_direction))
 
-        # fig = plt.figure()
-        # ax = fig.add_subplot(111, projection='3d')
-        
-        frame = 1000
 
-        # positions_graph = positions[0:frame, 0, :]
+
+
+       
+        
+        # positions_graph = positions[0:1000, 0, :]
         # ax.scatter(positions_graph[:, 0], positions_graph[:, 2], positions_graph[:, 1], c='r', marker='o')
 
         # Transform first joints to be local to sim and append sim as root bone
-        # positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1] - sim_position)
 
-        positions[:,0:1,0:1] -= sim_position[:,:,0:1]
-        positions[:,0:1,2:3] -= sim_position[:,:,2:3]
-        positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1])
-        rotations[:,0:1] = quat.mul(quat.inv(sim_rotation), rotations[:,0:1])
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
         
-        # positions_graph = positions[:frame, 0, :]
+
+        sim_position_xz = sim_position.copy()
+        sim_position_xz[:,0,1] = 0
+
+        # positions_graph = positions[:1000, 0, :]
         # ax.scatter(positions_graph[:, 0], positions_graph[:, 2], positions_graph[:, 1], c='b', marker='o')
 
-        # positions_graph = sim_position[:frame, 0, :]
-        # ax.scatter(positions_graph[:, 0], positions_graph[:, 2], positions_graph[:, 1], c='g', marker='o')
-        
-        # # 축 레이블을 추가합니다.
         # ax.set_xlabel('X')
         # ax.set_ylabel('Z')
         # ax.set_zlabel('Y')
 
-        # # 그래프를 표시합니다.
         # plt.show()
 
+        
+
+        positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1] - sim_position_xz)
+        # positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1] - sim_position)
+
+
+
+        positions_graph = positions[1050:1250, 0, :]
+        ax.scatter(positions_graph[:, 0], positions_graph[:, 2], positions_graph[:, 1], c='b', marker='o')
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Z')
+        ax.set_zlabel('Y')
+
+        plt.show()
+
+
+        import sys
+
+        sys.exit()
+
+
+        rotations[:,0:1] = quat.mul(quat.inv(sim_rotation), rotations[:,0:1])
+
+        # positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1] - sim_position)
+        # rotations[:,0:1] = quat.mul(quat.inv(sim_rotation), rotations[:,0:1])
+        
+        
+        
+
+        # positions_graph = sim_position[:1000, 0, :]
+        # ax.scatter(positions_graph[:, 0], positions_graph[:, 2], positions_graph[:, 1], c='g', marker='o')
+        
+        
 
 
         # sim_position[:,0,1] = sim_position_y[:,0,1]
@@ -247,22 +279,24 @@ for filename in files:
         # Contacts are given for when contact bones are below velocity threshold
         contacts = contact_velocity < contact_velocity_threshold
         
-
-        # positions_graph = global_positions[0:1000, 0, :]
-
-        # fig = plt.figure()
-        # ax = fig.add_subplot(111, projection='3d')
+        
+        
 
 
-        # ax.scatter(positions_graph[:, 0], positions_graph[:, 2], positions_graph[:, 1], c='b', marker='o')
+        # global_positions의 형식과 변수명을 알고 있어야 합니다.
+        positions_graph = global_positions[1000:1500, 0, :]  # x 데이터
+        plt.scatter(positions_graph[:, 0], positions_graph[:, 1], c='b', marker='o')
 
-        # # 축 레이블을 추가합니다.
-        # ax.set_xlabel('X')
-        # ax.set_ylabel('Z')
-        # ax.set_zlabel('Y')
+        positions_graph = global_positions[1000:1500, bvh_data['names'].index("Spine2"), :]  # y 데이터
+        plt.scatter(positions_graph[:, 0], positions_graph[:, 1], c='r', marker='o')
 
-        # # 그래프를 표시합니다.
-        # plt.show()
+        # 축 레이블을 추가합니다.
+        plt.xlabel('X')
+        plt.ylabel('Y')
+
+        # 그래프를 표시합니다.
+        plt.show()
+
 
         # Median filter here acts as a kind of "majority vote", and removes
         # small regions  where contact is either active or inactive
@@ -273,14 +307,6 @@ for filename in files:
                 contacts[:,ci], 
                 size=6, 
                 mode='nearest')
-
-        left_contact = global_positions[:, bone_names.index("LeftToe"), :]
-        left_contact = left_contact[(contacts[:, 0] == True)]
-
-        right_contact = global_positions[:, bone_names.index("RightToe"), :]
-        right_contact = right_contact[(contacts[:, 1] == True)]
-
-        contact_position = np.concatenate((left_contact, right_contact), axis=0)
 
         """ Append to Database """
         
@@ -295,9 +321,9 @@ for filename in files:
         range_stops.append(offset + len(positions))
         
         contact_states.append(contacts)
-        positions_graph.append(contact_position)
-  
+    
 """ Concatenate Data """
+
 bone_positions = np.concatenate(bone_positions, axis=0).astype(np.float32)
 bone_velocities = np.concatenate(bone_velocities, axis=0).astype(np.float32)
 bone_rotations = np.concatenate(bone_rotations, axis=0).astype(np.float32)
@@ -309,244 +335,27 @@ range_stops = np.array(range_stops).astype(np.int32)
 
 contact_states = np.concatenate(contact_states, axis=0).astype(np.uint8)
 
+# """ Write Database """
 
+# print("Writing Database...")
 
-
-
-
-# positions_graph = np.concatenate(positions_graph, axis=0).astype(np.float32)
-
-# print(positions_graph.shape)
-# positions_graph = np.unique(positions_graph, axis=0)
-# print(positions_graph.shape)
-
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-
-
-# ax.scatter(positions_graph[:, 0], positions_graph[:, 2], positions_graph[:, 1], c='b', marker='o')
-
-# # 축 레이블을 추가합니다.
-# ax.set_xlabel('X')
-# ax.set_ylabel('Z')
-# ax.set_zlabel('Y')
-
-# # 그래프를 표시합니다.
-# plt.show()
-
-
-""" Visualize Stats """
-
-# if True:
-if False:
+# with open('database.bin', 'wb') as f:
     
-    print("Visualizing Stats...")
+#     nframes = bone_positions.shape[0]
+#     nbones = bone_positions.shape[1]
+#     nranges = range_starts.shape[0]
+#     ncontacts = contact_states.shape[1]
     
-    def load_simulation_data(filename):
+#     f.write(struct.pack('II', nframes, nbones) + bone_positions.ravel().tobytes())
+#     f.write(struct.pack('II', nframes, nbones) + bone_velocities.ravel().tobytes())
+#     f.write(struct.pack('II', nframes, nbones) + bone_rotations.ravel().tobytes())
+#     f.write(struct.pack('II', nframes, nbones) + bone_angular_velocities.ravel().tobytes())
+#     f.write(struct.pack('I', nbones) + bone_parents.ravel().tobytes())
     
-        with open(filename, 'rb') as f:
-            
-            nframes = struct.unpack('I', f.read(4))[0]
-            simulation_positions = np.frombuffer(f.read(nframes*3*4), dtype=np.float32, count=nframes*3).reshape([nframes, 3])
-            nframes = struct.unpack('I', f.read(4))[0]
-            simulation_velocities = np.frombuffer(f.read(nframes*3*4), dtype=np.float32, count=nframes*3).reshape([nframes, 3])
-            nframes = struct.unpack('I', f.read(4))[0]
-            simulation_accelerations = np.frombuffer(f.read(nframes*3*4), dtype=np.float32, count=nframes*3).reshape([nframes, 3])
-            nframes = struct.unpack('I', f.read(4))[0]
-            simulation_rotations = np.frombuffer(f.read(nframes*4*4), dtype=np.float32, count=nframes*4).reshape([nframes, 4])
-            nframes = struct.unpack('I', f.read(4))[0]
-            simulation_angular_velocities = np.frombuffer(f.read(nframes*3*4), dtype=np.float32, count=nframes*3).reshape([nframes, 3])
-        
-        simulation_velocities = np.sqrt(np.sum(np.square(simulation_velocities), axis=-1))
-        simulation_accelerations = np.sqrt(np.sum(np.square(simulation_accelerations), axis=-1))
-        simulation_angular_velocities = np.sqrt(np.sum(np.square(simulation_angular_velocities), axis=-1))
-        
-        return (simulation_positions, simulation_velocities, simulation_accelerations, simulation_rotations, simulation_angular_velocities)
-        
-    # Load Simulation Data
+#     f.write(struct.pack('I', nranges) + range_starts.ravel().tobytes())
+#     f.write(struct.pack('I', nranges) + range_stops.ravel().tobytes())
     
-    (simulation_positions_run,
-     simulation_velocities_run,
-     simulation_accelerations_run,
-     simulation_rotations_run,
-     simulation_angular_velocities_run) = load_simulation_data('simulation_run.bin')
-    
-    (simulation_positions_walk,
-     simulation_velocities_walk,
-     simulation_accelerations_walk,
-     simulation_rotations_walk,
-     simulation_angular_velocities_walk) = load_simulation_data('simulation_walk.bin')
-    
-    # Velocities
-    
-    run_s, run_e = range_starts[2], range_stops[2]
-    walk_s, walk_e = range_starts[4], range_stops[4]
-    
-    root_velocities_walk = np.sqrt(np.sum(np.square(bone_velocities[walk_s:walk_e,0]), axis=-1))
-    root_angular_velocities_walk = np.sqrt(np.sum(np.square(bone_angular_velocities[walk_s:walk_e,0]), axis=-1))
-    
-    # Compute Acceleration
-    root_acceleration_walk = np.zeros_like(bone_velocities[walk_s:walk_e,0])
-    root_acceleration_walk[1:-1] = (
-        0.5 * (bone_velocities[walk_s+2:walk_e-0,0] - bone_velocities[walk_s+1:walk_e-1,0]) * 60.0 +
-        0.5 * (bone_velocities[walk_s+1:walk_e-1,0] - bone_velocities[walk_s+0:walk_e-2,0]) * 60.0)
-    root_acceleration_walk[0 ] = root_acceleration_walk[ 1]
-    root_acceleration_walk[-1] = root_acceleration_walk[-2]
-    
-    root_acceleration_walk = np.sqrt(np.sum(np.square(root_acceleration_walk), axis=-1))
-    
-    root_velocities_run = np.sqrt(np.sum(np.square(bone_velocities[run_s:run_e,0]), axis=-1))
-    root_angular_velocities_run = np.sqrt(np.sum(np.square(bone_angular_velocities[run_s:run_e,0]), axis=-1))
-    
-    # Compute Acceleration
-    root_acceleration_run = np.zeros_like(bone_velocities[run_s:run_e,0])
-    root_acceleration_run[1:-1] = (
-        0.5 * (bone_velocities[run_s+2:run_e-0,0] - bone_velocities[run_s+1:run_e-1,0]) * 60.0 +
-        0.5 * (bone_velocities[run_s+1:run_e-1,0] - bone_velocities[run_s+0:run_e-2,0]) * 60.0)
-    root_acceleration_run[ 0] = root_acceleration_run[ 1]
-    root_acceleration_run[-1] = root_acceleration_run[-2]
-    
-    root_acceleration_run = np.sqrt(np.sum(np.square(root_acceleration_run), axis=-1))
-    
-    # Plot Histograms
-    
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    
-    fig, ax = plt.subplots(2, 3, figsize=(6.4, 3.6))
-    
-    ax[0,0].hist(root_velocities_walk, bins=50, density=True, label='data', color=colors[0])
-    ax[0,0].hist(simulation_velocities_walk, bins=50, alpha=0.5, density=True, label='simulation', color=colors[2])
-    ax[0,0].set_xlim([0, 6])
-    ax[0,0].set_title('Velocities\n\n', fontsize=12)
-    ax[0,0].axes.yaxis.set_ticklabels([])
-    ax[0,0].set_xlabel('$m/s$')
-    
-    ax[0,1].hist(root_acceleration_walk, bins=50, density=True, label='data', color=colors[0])
-    ax[0,1].hist(simulation_accelerations_walk, bins=50, alpha=0.5, density=True, label='simulation', color=colors[2])
-    ax[0,1].set_xlim([0, 15])
-    ax[0,1].set_title('Accelerations\n\nWalking', fontsize=12)
-    ax[0,1].axes.yaxis.set_ticklabels([])
-    ax[0,1].set_xlabel('$m/s^2$')
-    
-    ax[0,2].hist(root_angular_velocities_walk, bins=50, density=True, label='data', color=colors[0])
-    ax[0,2].hist(simulation_angular_velocities_walk, bins=50, alpha=0.5, density=True, label='simulation', color=colors[2])
-    ax[0,2].set_xlim([0, 7])
-    ax[0,2].set_title('Angular Velocities\n\n', fontsize=12)
-    ax[0,2].axes.yaxis.set_ticklabels([])
-    ax[0,2].set_xlabel('$rad/s$')
-    ax[0,2].legend()
-    
-
-    ax[1,0].hist(root_velocities_run, bins=50, density=True, label='data', color=colors[1])
-    ax[1,0].hist(simulation_velocities_run, bins=50, alpha=0.5, density=True, label='simulation', color=colors[3])
-    ax[1,0].set_xlim([0, 6])
-    ax[1,0].axes.yaxis.set_ticklabels([])
-    ax[1,0].set_xlabel('$m/s$')
-    
-    ax[1,1].hist(root_acceleration_run, bins=50, density=True, label='data', color=colors[1])
-    ax[1,1].hist(simulation_accelerations_run, bins=50, alpha=0.5, density=True, label='simulation', color=colors[3])
-    ax[1,1].set_xlim([0, 15])
-    ax[1,1].set_title('Running', fontsize=12)
-    ax[1,1].axes.yaxis.set_ticklabels([])
-    ax[1,1].set_xlabel('$m/s^2$')
-    
-    ax[1,2].hist(root_angular_velocities_run, bins=50, density=True, label='data', color=colors[1])
-    ax[1,2].hist(simulation_angular_velocities_run, bins=50, alpha=0.5, density=True, label='simulation', color=colors[3])
-    ax[1,2].set_xlim([0, 7])
-    ax[1,2].axes.yaxis.set_ticklabels([])
-    ax[1,2].set_xlabel('$rad/s$')
-    ax[1,2].legend()
-    
-    plt.tight_layout()
-    plt.show()
-    
-    # Compute Trajectories
-    
-    trajectories_sim_walk = []
-    
-    for i in range(0, len(simulation_positions_walk) - 60, 15):
-        traj = quat.mul_vec(
-            quat.inv(simulation_rotations_walk[i:i+1]), simulation_positions_walk[i:i+60:5] - simulation_positions_walk[i:i+1])
-        trajectories_sim_walk.append(traj)
-
-    trajectories_sim_run = []
-    
-    for i in range(0, len(simulation_positions_run) - 60, 15):
-        traj = quat.mul_vec(
-            quat.inv(simulation_rotations_run[i:i+1]), simulation_positions_run[i:i+60:5] - simulation_positions_run[i:i+1])
-        trajectories_sim_run.append(traj)
-    
-    trajectories_root_walk = []
-    
-    for i in range(walk_s, walk_e - 60, 30):
-        traj = quat.mul_vec(
-            quat.inv(bone_rotations[i:i+1,0]), bone_positions[i:i+60:5,0] - bone_positions[i:i+1,0])
-        trajectories_root_walk.append(traj)
-
-    trajectories_root_run = []
-
-    for i in range(run_s, run_e - 60, 30):
-        traj = quat.mul_vec(
-            quat.inv(bone_rotations[i:i+1,0]), bone_positions[i:i+60:5,0] - bone_positions[i:i+1,0])
-        trajectories_root_run.append(traj)
-
-    # Plot Trajectories
-
-    fig, ax = plt.subplots(1, 2, figsize=(6.4, 3.6))
-    
-    for ti, traj in enumerate(trajectories_root_walk):
-        ax[0].plot(traj[:,0], traj[:,2], c=colors[0], alpha=0.25, label='data' if ti == 0 else None)
-            
-    for ti, traj in enumerate(trajectories_sim_walk):
-        ax[0].plot(traj[:,0], traj[:,2], c=colors[2], alpha=0.12, label='simulation' if ti == 0 else None)
-            
-    ax[0].set_title('Walking')
-    ax[0].set_ylim([-2.5, 4.5])
-    ax[0].set_xlim([-3, 3])
-    ax[0].set_aspect('equal')
-    ax[0].set_xlabel('m')
-    ax[0].set_ylabel('m')
-    ax[0].legend()
-    
-    for ti, traj in enumerate(trajectories_root_run):
-        ax[1].plot(traj[:,0], traj[:,2], c=colors[1], alpha=0.25, label='data' if ti == 0 else None)
-
-    for ti, traj in enumerate(trajectories_sim_run):
-        ax[1].plot(traj[:,0], traj[:,2], c=colors[3], alpha=0.12, label='simulation' if ti == 0 else None)
-
-    ax[1].set_title('Running')
-    ax[1].set_ylim([-2.5, 4.5])
-    ax[1].set_xlim([-3, 3])
-    ax[1].set_aspect('equal')
-    ax[1].set_xlabel('m')
-    ax[0].set_ylabel('m')
-    ax[1].legend()
-
-    plt.tight_layout()
-    plt.show()
-    
-    
-""" Write Database """
-
-print("Writing Database...")
-
-with open('database.bin', 'wb') as f:
-    
-    nframes = bone_positions.shape[0]
-    nbones = bone_positions.shape[1]
-    nranges = range_starts.shape[0]
-    ncontacts = contact_states.shape[1]
-    
-    f.write(struct.pack('II', nframes, nbones) + bone_positions.ravel().tobytes())
-    f.write(struct.pack('II', nframes, nbones) + bone_velocities.ravel().tobytes())
-    f.write(struct.pack('II', nframes, nbones) + bone_rotations.ravel().tobytes())
-    f.write(struct.pack('II', nframes, nbones) + bone_angular_velocities.ravel().tobytes())
-    f.write(struct.pack('I', nbones) + bone_parents.ravel().tobytes())
-    
-    f.write(struct.pack('I', nranges) + range_starts.ravel().tobytes())
-    f.write(struct.pack('I', nranges) + range_stops.ravel().tobytes())
-    
-    f.write(struct.pack('II', nframes, ncontacts) + contact_states.ravel().tobytes())
+#     f.write(struct.pack('II', nframes, ncontacts) + contact_states.ravel().tobytes())
 
     
     

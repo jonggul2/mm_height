@@ -124,20 +124,21 @@ for filename in files:
         sim_rotation_joint = bvh_data['names'].index("Hips")
         
         # Position comes from spine joint
-        sim_position = np.array([1.0, 1.0, 1.0]) * global_positions[:,sim_position_joint:sim_position_joint+1]
-
+        sim_position = np.array([1.0, 0.0, 1.0]) * global_positions[:,sim_position_joint:sim_position_joint+1]
 
         if ('obstacles' in filename):
-            file_path = 'resources/terrain_data.txt'
-            data = np.loadtxt(file_path, delimiter=',')
-            for i in range(sim_position.shape[0]):
-                height = find_closest_y(data[:, 2], sim_position[i, 0, 0], sim_position[i, 0, 2])
-                sim_position[i, 0, 1] = height
-
-        else:
-            sim_position = np.array([1.0, 0.0, 1.0]) * global_positions[:,sim_position_joint:sim_position_joint+1]
-
-
+            if mirror:
+                file_path = 'resources/terrain_data.txt'
+                data = np.loadtxt(file_path, delimiter=',')
+                for i in range(sim_position.shape[0]):
+                    height = find_closest_y(data[:, 2], -sim_position[i, 0, 0], sim_position[i, 0, 2])
+                    sim_position[i, 0, 1] = height
+            else:
+                file_path = 'resources/terrain_data.txt'
+                data = np.loadtxt(file_path, delimiter=',')
+                for i in range(sim_position.shape[0]):
+                    height = find_closest_y(data[:, 2], sim_position[i, 0, 0], sim_position[i, 0, 2])
+                    sim_position[i, 0, 1] = height
 
         # root_height = sim_position[0, 0, 1]
         # sim_position[:, 1:, :] = np.array([1.0, 0.0, 1.0]) * sim_position[:, 1:, :]
@@ -168,6 +169,9 @@ for filename in files:
         # Extract rotation from direction
         sim_rotation = quat.normalize(quat.between(np.array([0, 0, 1]), sim_direction))
 
+
+
+
         # fig = plt.figure()
         # ax = fig.add_subplot(111, projection='3d')
         
@@ -175,8 +179,14 @@ for filename in files:
         # ax.scatter(positions_graph[:, 0], positions_graph[:, 2], positions_graph[:, 1], c='r', marker='o')
 
         # Transform first joints to be local to sim and append sim as root bone
-        positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1] - sim_position)
+        sim_position_xz = sim_position.copy()
+        sim_position_xz[:,0,1] = 0
+        positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1] - sim_position_xz)
+        # positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1] - sim_position)
         rotations[:,0:1] = quat.mul(quat.inv(sim_rotation), rotations[:,0:1])
+
+        # positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1] - sim_position)
+        # rotations[:,0:1] = quat.mul(quat.inv(sim_rotation), rotations[:,0:1])
         
         # positions_graph = positions[:1000, 0, :]
         # ax.scatter(positions_graph[:, 0], positions_graph[:, 2], positions_graph[:, 1], c='b', marker='o')
